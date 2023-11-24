@@ -1,0 +1,5 @@
+[slack]
+url = "https://hooks.slack.com/services/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"
+token = "xoxb-5830585641972-6257213006977-dL2v5P5ZFVHlX3BMnYgUkkqq"
+channel = "#general"
+interval = "1s"

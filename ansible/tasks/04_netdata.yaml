@@ -1,0 +1,17 @@
+---
+
+- name: check netdata installation status
+  stat:
+    path: /usr/sbin/netdata
+  register: netdata_bin
+- name: download netdata installer
+  get_url: url=https://my-netdata.io/kickstart.sh dest=/tmp/netdata-kickstart.sh
+  when: netdata_bin.stat.exists == False
+- name: install netdata
+  command: bash /tmp/netdata-kickstart.sh --dont-wait --no-updates --claim-token _2UHD6NSpyOSdKgr2Bg52kDAvoZhHKijdu5KsKPYOxsuA1orGVmaLkkdNn89nkraEosvjxNx_-ra4dQR5kjDTyPwcJklPmgpo1yqUo5Q9TC96abDBLQAFai57pAysMS_evnduaI --claim-rooms 6df82996-7064-4e97-9ddf-a185301abdf5 --claim-url https://app.netdata.cloud
+  when: netdata_bin.stat.exists == False
+
+- name: restart netdata
+  systemd:
+    state: restarted
+    name: netdata

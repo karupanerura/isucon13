@@ -1,0 +1,55 @@
+---
+
+- name: download and install pt-query-digest
+  get_url: url=https://percona.com/get/pt-query-digest dest=/usr/bin/pt-query-digest mode=0755
+
+- name: download and install lltsv
+  get_url: url=https://github.com/sonots/lltsv/releases/download/v0.7.0/lltsv_linux_amd64 dest=/usr/bin/lltsv mode=0755
+
+- name: check gojq installation status
+  stat:
+    path: /usr/bin/gojq
+  register: gojq_bin
+- name: download and install gojq
+  block:
+    - name: download gojq
+      get_url: url=https://github.com/itchyny/gojq/releases/download/v0.12.13/gojq_v0.12.13_linux_amd64.tar.gz dest=/tmp/gojq_linux_amd64.tar.gz
+    - name: unarchive gojq
+      unarchive: src=/tmp/gojq_linux_amd64.tar.gz dest=/tmp mode=0755 copy=no
+    - name: copy gojq
+      copy: src=/tmp/gojq_v0.12.13_linux_amd64/gojq dest=/usr/bin/gojq remote_src=yes owner=root group=root mode=0755
+  when: gojq_bin.stat.exists == False
+
+- name: check alp installation status
+  stat:
+    path: /usr/bin/alp
+  register: alp_bin
+- name: download and install alp
+  block:
+    - name: download alp
+      get_url: url=https://github.com/tkuchiki/alp/releases/download/v1.0.21/alp_linux_amd64.zip dest=/tmp/alp_linux_amd64.zip
+    - name: unarchive alp
+      unarchive: src=/tmp/alp_linux_amd64.zip dest=/usr/bin mode=0755 copy=no
+  when: alp_bin.stat.exists == False
+
+- name: check notify_slack installation status
+  stat:
+    path: /usr/bin/notify_slack
+  register: notify_slack_bin
+- name: download and install notify_slack
+  block:
+    - name: download notify_slack
+      get_url: url=https://github.com/catatsuy/notify_slack/releases/download/v0.4.14/notify_slack-linux-amd64.tar.gz dest=/tmp/notify_slack-linux-amd64.tar.gz
+    - name: unarchive notify_slack
+      unarchive: src=/tmp/notify_slack-linux-amd64.tar.gz dest=/tmp mode=0755 copy=no
+    - name: copy notify_slack
+      copy: src=/tmp/notify_slack dest=/usr/bin/notify_slack remote_src=yes owner=root group=root mode=0755
+  when: notify_slack_bin.stat.exists == False
+- name: copy notify_slack config
+  copy: src=config/notify_slack.toml dest=/etc/notify_slack.toml owner=root group=root mode=0644
+
+- name: install tools
+  copy: src=bin/{{ item }} dest=/usr/bin/{{ item }} owner=root group=root mode=0755
+  with_items:
+    - logrotate.pl
+    - pre-bench.sh

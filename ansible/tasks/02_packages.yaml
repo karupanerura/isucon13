@@ -1,0 +1,19 @@
+---
+
+- name: remove nano
+  apt: name=nano state=absent
+- name: install packages
+  apt:
+    name:
+      - build-essential
+      - vim
+      - dstat
+      - sysstat
+      - tcpdump
+      - curl
+      - git
+      - perl
+      - perl-doc
+      - zip
+    update_cache: yes
+    cache_valid_time: 90

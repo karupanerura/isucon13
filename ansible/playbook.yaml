@@ -1,0 +1,80 @@
+---
+
+- hosts: all
+  become: yes
+  tasks:
+    - slack:
+        token: 'T05QEH7JVUL/B067K296RB3/nTy6RFRf6IWV89gSiDtkoO40'
+        msg: '[{{ inventory_hostname }}] start init'
+    - import_tasks: tasks/01_common.yaml
+    - import_tasks: tasks/02_packages.yaml
+    - import_tasks: tasks/03_tools.yaml
+    - import_tasks: tasks/04_netdata.yaml
+    # - import_tasks: tasks/05_kernel.yaml # TODO: 悪化することもあるので状況に応じて/バックアップを取ってから
+    - slack:
+        token: 'T05QEH7JVUL/B067K296RB3/nTy6RFRf6IWV89gSiDtkoO40'
+        msg: '[{{ inventory_hostname }}] finish init'
+  tags: init
+
+- hosts: all
+  become: yes
+  tasks:
+    - slack:
+        token: 'T05QEH7JVUL/B067K296RB3/nTy6RFRf6IWV89gSiDtkoO40'
+        msg: '[{{ inventory_hostname }}] start netdata'
+    - import_tasks: tasks/04_netdata.yaml
+    - slack:
+        token: 'T05QEH7JVUL/B067K296RB3/nTy6RFRf6IWV89gSiDtkoO40'
+        msg: '[{{ inventory_hostname }}] finish netdata'
+  tags: netdata
+
+- hosts: all
+  become: yes
+  tasks:
+    - slack:
+        token: 'T05QEH7JVUL/B067K296RB3/nTy6RFRf6IWV89gSiDtkoO40'
+        msg: '[{{ inventory_hostname }}] start kernel'
+    - import_tasks: tasks/05_kernel.yaml
+    - slack:
+        token: 'T05QEH7JVUL/B067K296RB3/nTy6RFRf6IWV89gSiDtkoO40'
+        msg: '[{{ inventory_hostname }}] finish kernel'
+  tags: kernel
+
+- hosts: proxy
+  become: yes
+  tasks:
+    - slack:
+        token: 'T05QEH7JVUL/B067K296RB3/nTy6RFRf6IWV89gSiDtkoO40'
+        msg: '[{{ inventory_hostname }}] start proxy'
+    - import_tasks: tasks/nginx/01_configuration.yaml
+    - import_tasks: tasks/nginx/02_netdata.yaml
+    - slack:
+        token: 'T05QEH7JVUL/B067K296RB3/nTy6RFRf6IWV89gSiDtkoO40'
+        msg: '[{{ inventory_hostname }}] finish proxy'
+  tags: nginx
+
+- hosts: db
+  become: yes
+  tasks:
+    - slack:
+        token: 'T05QEH7JVUL/B067K296RB3/nTy6RFRf6IWV89gSiDtkoO40'
+        msg: '[{{ inventory_hostname }}] start db'
+    - import_tasks: tasks/mysql/01_configuration.yaml
+    - import_tasks: tasks/mysql/02_netdata.yaml
+    - slack:
+        token: 'T05QEH7JVUL/B067K296RB3/nTy6RFRf6IWV89gSiDtkoO40'
+        msg: '[{{ inventory_hostname }}] finish db'
+  tags: mysql
+
+- hosts: redis
+  become: yes
+  tasks:
+    - slack:
+        token: 'T05QEH7JVUL/B067K296RB3/nTy6RFRf6IWV89gSiDtkoO40'
+        msg: '[{{ inventory_hostname }}] start redis'
+    - import_tasks: tasks/redis/01_configuration.yaml
+    - import_tasks: tasks/redis/02_netdata.yaml
+    - slack:
+        token: 'T05QEH7JVUL/B067K296RB3/nTy6RFRf6IWV89gSiDtkoO40'
+        msg: '[{{ inventory_hostname }}] finish redis'
+  tags: redis
