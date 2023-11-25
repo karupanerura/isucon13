@@ -26,8 +26,8 @@ use Isupipe::FillResponse qw(
 );
 
 use Isupipe::Icon qw(
-    generate_icon_hash
     FALLBACK_IMAGE_PATH
+    FALLBACK_IMAGE_HASH_PATH
 );
 
 use constant POWER_DNS_SUBDMAIN_ADDRESS => `curl http://169.254.169.254/latest/meta-data/public-ipv4`;
@@ -202,6 +202,26 @@ sub get_user_handler($app, $c) {
 sub get_icon_handler($app, $c) {
     my $username = $c->args->{username};
 
+    my $res = $c->response;
+
+    state %icon_hash_cache;
+
+    my $icon_hash = $icon_hash_cache{username} //= do {
+        local $/;
+        my $fh;
+        open $fh, '<', "/home/isucon/icons/$username.sha256"
+            or open $fh, '<', FALLBACK_IMAGE_HASH_PATH
+            or die "Cannot open icon hash file: $!";
+        <$fh>;
+    };
+
+    $res->header('ETag' => qq{"$icon_hash"});
+
+    if (($c->req->header('If-None-Match') // '') eq qq{"$icon_hash"}) {
+        $res->status(HTTP_NOT_MODIFIED);
+        return $res;
+    }
+
     my $image = do {
         local $/;
         my $fh;
@@ -210,16 +230,6 @@ sub get_icon_handler($app, $c) {
             or die "Cannot open icon file: $!";
         <$fh>;
     };
-
-    my $icon_hash = sha256_hex($image);
-
-    my $res = $c->response;
-    $res->header('ETag' => qq{"$icon_hash"});
-
-    if ($c->req->header('If-None-Match') eq qq{"$icon_hash"}) {
-        $res->status(HTTP_NOT_MODIFIED);
-        return $res;
-    }
 
     $res->status(HTTP_OK);
     $res->content_type('image/jpeg');
@@ -243,15 +253,22 @@ sub post_icon_handler($app, $c) {
         $user_id,
     );
     my $username = $user->{name};
+    my $image = decode_base64($params->{image});
 
     {
         my $dir = tempdir(CLEANUP => 1);
 
-        open my $fh, '>', "$dir/$username.jpeg" or die "Cannot open icon file: $!";
-        print $fh decode_base64($params->{image});
+        my $fh;
+        open $fh, '>', "$dir/$username.jpeg" or die "Cannot open icon file: $!";
+        print $fh $image;
         close $fh or die "Cannot close icon file: $!";
 
+        open $fh, '>', "$dir/$username.sha256" or die "Cannot open icon hash file: $!";
+        print $fh sha256_hex($image);
+        close $fh or die "Cannot close icon hash file: $!";
+
         rename "$dir/$username.jpeg", "/home/isucon/icons/$username.jpeg" or die "Cannot rename icon file: $!";
+        rename "$dir/$username.sha256", "/home/isucon/icons/$username.sha256" or die "Cannot rename icon hash file: $!";
     }
 
     state $id = 0;
