@@ -7,6 +7,7 @@ use Types::Standard -types;
 use Plack::Session;;
 use MIME::Base64 qw(decode_base64);
 use File::Temp qw(tempdir);
+use Digest::SHA qw(sha256_hex);
 
 use Isupipe::Log;
 use Isupipe::Entity::User;
@@ -25,7 +26,8 @@ use Isupipe::FillResponse qw(
 );
 
 use Isupipe::Icon qw(
-    read_fallback_user_icon_image
+    generate_icon_hash
+    FALLBACK_IMAGE_PATH
 );
 
 use constant POWER_DNS_SUBDMAIN_ADDRESS => `curl http://169.254.169.254/latest/meta-data/public-ipv4`;
@@ -200,16 +202,21 @@ sub get_user_handler($app, $c) {
 sub get_icon_handler($app, $c) {
     my $username = $c->args->{username};
 
-    # nginxで処理されるので、ここではフォールバックの実装だけ提供する
     my $image = do {
         local $/;
-        open my $fh, '<', "/home/isucon/icons/$username.jpeg" or $c->halt(HTTP_NOT_FOUND, 'no icon file found');
+        my $fh;
+        open $fh, '<', "/home/isucon/icons/$username.jpeg"
+            or open $fh, '<', FALLBACK_IMAGE_PATH
+            or die "Cannot open icon file: $!";
         <$fh>;
     };
+
+    my $icon_hash = sha256_hex($image);
 
     my $res = $c->response;
     $res->status(HTTP_OK);
     $res->content_type('image/jpeg');
+    $res->header('ETag' => qq{"$icon_hash"});
     $res->body($image);
     return $res;
 }
@@ -241,7 +248,8 @@ sub post_icon_handler($app, $c) {
         rename "$dir/$username.jpeg", "/home/isucon/icons/$username.jpeg" or die "Cannot rename icon file: $!";
     }
 
-    my $res = $c->render_json({});
+    state $id = 0;
+    my $res = $c->render_json({ id => ++$id });
     $res->status(HTTP_CREATED);
     return $res;
 }

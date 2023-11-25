@@ -13,7 +13,6 @@ our @EXPORT_OK = qw(
 );
 
 use Carp qw(croak);
-use Digest::SHA qw(sha256_hex);
 
 use Isupipe::Entity::User;
 use Isupipe::Entity::Tag;
@@ -23,7 +22,7 @@ use Isupipe::Entity::Livecomment;
 use Isupipe::Entity::Reaction;
 
 use Isupipe::Icon qw(
-    read_fallback_user_icon_image
+    generate_icon_hash
 );
 
 sub fill_user_response($app, $user) {
@@ -36,12 +35,7 @@ sub fill_user_response($app, $user) {
         croak 'Theme not found:', $user->id;
     }
 
-    my $image = $app->dbh->select_one(
-        'SELECT image FROM icons WHERE user_id = ?',
-        $user->id,
-    ) // read_fallback_user_icon_image;
-    my $icon_hash = sha256_hex($image);
-
+    my $icon_hash = generate_icon_hash($user->name);
     return Isupipe::Entity::User->new(
         id           => $user->id,
         name         => $user->name,
