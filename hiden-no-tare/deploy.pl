@@ -12,8 +12,7 @@ my $REMOTE_BASE_DIR = '/home/isucon/webapp';
 
 my $WITH_ENV_SH = 1;
 my @TARGET_DIRS = qw(perl img pdns sql);
-#my @TARGET_HOSTS = qw(isucon13-final-1 isucon13-final-2 isucon13-final-3);
-my @TARGET_HOSTS = qw(isucon13-final-3);
+my @TARGET_HOSTS = qw(isucon13-final-1 isucon13-final-2 isucon13-final-3);
 
 
 # check dir
