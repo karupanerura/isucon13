@@ -79,7 +79,7 @@ sub post_livecomment_handler($app, $c) {
     }
 
     my $livestream_owner_user_id = $params->{tip} ? $app->dbh->select_one(
-        'SELECT u.id FROM livestream l INNER JOIN users u ON u.id = l.user_id WHERE l.id = ?',
+        'SELECT u.id FROM livestreams l INNER JOIN users u ON u.id = l.user_id WHERE l.id = ?',
         $livestream_id,
     ) : undef;
 
@@ -135,6 +135,9 @@ sub post_livecomment_handler($app, $c) {
         'INSERT INTO livecomments (user_id, livestream_id, comment, tip, created_at) VALUES (:user_id, :livestream_id, :comment, :tip, :created_at)',
         $livecomment->as_hashref,
     );
+    my $livecomment_id = $app->dbh->last_insert_id;
+    $livecomment->id($livecomment_id);
+
     if ($params->{tip}) {
         $app->dbh->query(
             'UPDATE livestream_scores SET score = score + :tip WHERE livestream_id = :livestream_id',
@@ -151,9 +154,6 @@ sub post_livecomment_handler($app, $c) {
             },
         );
     }
-
-    my $livecomment_id = $app->dbh->last_insert_id;
-    $livecomment->id($livecomment_id);
 
     $livecomment = fill_livecomment_response($app, $livecomment);
 
