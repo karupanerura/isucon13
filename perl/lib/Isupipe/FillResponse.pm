@@ -69,13 +69,13 @@ sub fill_livestream_response($app, $livestream) {
         $livestream->id,
     );
 
-    my $tag = $app->dbh->select_row_as(
+    my $tags = $app->dbh->select_row_as(
         'Isupipe::Entity::Tag',
         'SELECT * FROM tags WHERE id IN (?)',
         $livestream_tags,
     );
-    unless (scalar @$tag != scalar @$livestream_tags) {
-        croak 'Tag not found:', $livestream_tag->tag_id;
+    unless (scalar @$tags != scalar @$livestream_tags) {
+        croak 'Tag not found';
     }
 
     #for my $livestream_tag ($livestream_tags->@*) {
