@@ -7,6 +7,7 @@ use Types::Standard -types;
 use Plack::Session;;
 use MIME::Base64 qw(decode_base64);
 use Digest::SHA qw(sha256_hex);
+use HTTP::Date qw(time2str);
 
 use Isupipe::Log;
 use Isupipe::Entity::User;
@@ -201,12 +202,12 @@ sub get_user_handler($app, $c) {
 sub get_icon_handler($app, $c) {
     my $username = $c->args->{username};
 
-    my $user = $app->dbh->select_one(
+    my $user = $app->dbh->select_row(
         <<'SQL',
-SELECT u.id as user_id, i.image as image
-FROM users
-LEFT JOIN icons ON users.id = icons.user_id
-WHERE name = ?
+SELECT u.id as user_id, i.image as image, i.http_etag as http_etag, i.http_last_modified as http_last_modified
+FROM users as u
+LEFT JOIN icons as i ON u.id = i.user_id
+WHERE u.name = ?
 SQL
         $username,
     );
@@ -214,16 +215,16 @@ SQL
         $c->halt(HTTP_NOT_FOUND, 'not found user that has the given username');
     }
 
-    my $image = $user->{image}
+    my $image = $user->{image};
     if (!$image) {
         $image = read_fallback_user_icon_image();
     }
-    my $etag = sha256_hex($image); # FIXME: あらかじめ計算しておく
 
     my $res = $c->response;
     $res->status(HTTP_OK);
     $res->content_type('image/jpeg');
-    $res->set_header('ETag' => $etag);
+    $res->header('ETag' => $user->{http_etag});
+    $res->header('Last-Modified' => $user->{http_last_modified});
     $res->body($image);
     return $res;
 }
@@ -244,10 +245,13 @@ sub post_icon_handler($app, $c) {
         'DELETE FROM icons WHERE user_id = ?', $user_id
     );
 
+    my $image = decode_base64($params->{image});
     $app->dbh->query(
-        'INSERT INTO icons (user_id, image) VALUES(?, ?)',
+        'INSERT INTO icons (user_id, image, http_etag, http_last_modified) VALUES(?, ?, ?, ?)',
         $user_id,
-        decode_base64($params->{image}),
+        $image,
+        sha256_hex($image),
+        time2str(CORE::time()),
     );
 
     my $icon_id = $app->dbh->last_insert_id;
