@@ -80,8 +80,9 @@ sub register_handler($app, $c) {
         'INSERT INTO users (name, display_name, description, password) VALUES(:name, :display_name, :description, :password)',
         $user->as_hashref
     );
-
     my $user_id = $app->dbh->last_insert_id;
+    $app->dbh->query('INSERT INTO user_scores (user_id, score, user_name) VALUES (?, 0, ?)', $user_id, $params->{name});
+
     $user->id($user_id);
 
     my $theme = Isupipe::Entity::Theme->new(
