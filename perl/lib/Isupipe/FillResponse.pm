@@ -74,7 +74,7 @@ sub fill_livestream_response($app, $livestream) {
         'SELECT * FROM tags WHERE id IN (?)',
         $livestream_tags,
     );
-    unless (scalar @$tags != scalar @$livestream_tags) {
+    if (scalar @$tags != scalar @$livestream_tags) {
         croak 'Tag not found';
     }
 
