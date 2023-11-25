@@ -1,0 +1,2 @@
+DROP DATABASE isupipe;
+CREATE DATABASE isupipe;
