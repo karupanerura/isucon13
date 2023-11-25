@@ -192,8 +192,6 @@ sub get_user_handler($app, $c) {
 
     $user = fill_user_response($app, $user);
 
-    $txn->commit;
-
     return $c->render_json($user);
 }
 

@@ -54,6 +54,10 @@ sub dbh($self) {
     $self->{_dbh} //= connect_db();
 }
 
+sub dbh_r($self) {
+    $self->{_dbh_r} //= connect_r_db();
+}
+
 sub initialize_handler($self, $c) {
     my $e = system($self->root_dir . "/../sql/init.sh");
     if ($e) {

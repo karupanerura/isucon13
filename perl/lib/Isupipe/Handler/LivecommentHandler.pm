@@ -50,7 +50,6 @@ sub get_livecomments_handler($app, $c) {
         $livestream_id,
     );
     unless ($livecomments->@*) {
-        $txn->rollback;
         return $c->render_json([]);
     }
 
