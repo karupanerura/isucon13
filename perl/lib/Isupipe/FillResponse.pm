@@ -78,18 +78,6 @@ sub fill_livestream_response($app, $livestream) {
         croak 'Tag not found';
     }
 
-    #for my $livestream_tag ($livestream_tags->@*) {
-    #    my $tag = $app->dbh->select_row_as(
-    #        'Isupipe::Entity::Tag',
-    #        'SELECT * FROM tags WHERE id = ?',
-    #        $livestream_tag->tag_id,
-    #    );
-    #    unless ($tag) {
-    #        croak 'Tag not found:', $livestream_tag->tag_id;
-    #    }
-    #    push $tags->@*, $tag;
-    #}
-
     return Isupipe::Entity::Livestream->new(
         id            => $livestream->id,
         owner         => $owner,
