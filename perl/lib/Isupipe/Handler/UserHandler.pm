@@ -27,7 +27,7 @@ use Isupipe::Icon qw(
     read_fallback_user_icon_image
 );
 
-use constant POWER_DNS_SUBDMAIN_ADDRESS => $ENV{ISUCON13_POWERDNS_SUBDOMAIN_ADDRESS};
+use constant POWER_DNS_SUBDMAIN_ADDRESS => `curl http://169.254.169.254/latest/meta-data/public-ipv4`;
 
 use constant PostUserRequestTheme => Dict[
     dark_mode => Bool,
