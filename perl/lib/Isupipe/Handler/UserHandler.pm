@@ -214,9 +214,15 @@ sub get_icon_handler($app, $c) {
     my $icon_hash = sha256_hex($image);
 
     my $res = $c->response;
+    $res->header('ETag' => qq{"$icon_hash"});
+
+    if ($c->req->header('If-None-Match') eq qq{"$icon_hash"}) {
+        $res->status(HTTP_NOT_MODIFIED);
+        return $res;
+    }
+
     $res->status(HTTP_OK);
     $res->content_type('image/jpeg');
-    $res->header('ETag' => qq{"$icon_hash"});
     $res->body($image);
     return $res;
 }
