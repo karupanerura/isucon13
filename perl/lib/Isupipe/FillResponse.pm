@@ -81,9 +81,6 @@ sub fill_livestream_response($app, $livestream) {
         'SELECT tags.* FROM livestream_tags INNER JOIN tags ON tags.id = livestream_tags.tag_id WHERE livestream_tags.livestream_id = ?',
         $livestream->id,
     ) || [];
-    unless (@$tags) {
-        croak 'Tag not found';
-    }
 
     return Isupipe::Entity::Livestream->new(
         id            => $livestream->id,
