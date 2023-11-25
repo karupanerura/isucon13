@@ -30,7 +30,7 @@ sub get_streamer_theme_handler($app, $c) {
 
     my $txn = $app->dbh->txn_scope;
 
-    my $user = $app->dbh->select_row_as(
+    my $user = $app->dbh_r->select_row_as(
         'Isupipe::Entity::User',
         'SELECT id FROM users WHERE name = ?',
         $username
@@ -39,7 +39,7 @@ sub get_streamer_theme_handler($app, $c) {
         $c->halt(HTTP_NOT_FOUND, 'user not found: '. $username);
     }
 
-    my $theme = $app->dbh->select_row_as(
+    my $theme = $app->dbh_r->select_row_as(
         'Isupipe::Entity::Theme',
         'SELECT * FROM themes WHERE user_id = ?',
         $user->id

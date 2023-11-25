@@ -26,7 +26,7 @@ use Isupipe::Icon qw(
 );
 
 sub fill_user_response($app, $user) {
-    my $theme = $app->dbh->select_row_as(
+    my $theme = $app->dbh_r->select_row_as(
         'Isupipe::Entity::Theme',
         'SELECT * FROM themes WHERE user_id = ?',
         $user->id,
@@ -47,7 +47,7 @@ sub fill_user_response($app, $user) {
 }
 
 sub fill_livestream_response($app, $livestream) {
-    my $owner = $app->dbh->select_row_as(
+    my $owner = $app->dbh_r->select_row_as(
         'Isupipe::Entity::User',
         'SELECT * FROM users WHERE id = ?',
         $livestream->user_id,
@@ -57,7 +57,7 @@ sub fill_livestream_response($app, $livestream) {
     }
     $owner = fill_user_response($app, $owner);
 
-    my $livestream_tags = $app->dbh->select_all(
+    my $livestream_tags = $app->dbh_r->select_all(
         'SELECT tag_id FROM livestream_tags WHERE livestream_id = ?',
         $livestream->id,
     ) || [];
@@ -65,7 +65,7 @@ sub fill_livestream_response($app, $livestream) {
     my $tags = [];
     if (scalar @$livestream_tags) {
         my @tag_ids = map { $_->{tag_id} } @$livestream_tags;
-        $tags = $app->dbh->select_all_as(
+        $tags = $app->dbh_r->select_all_as(
             'Isupipe::Entity::Tag',
             'SELECT * FROM tags WHERE id IN (?)',
             \@tag_ids,
@@ -89,14 +89,14 @@ sub fill_livestream_response($app, $livestream) {
 }
 
 sub fill_livecomment_response($app, $livecomment) {
-    my $user = $app->dbh->select_row_as(
+    my $user = $app->dbh_r->select_row_as(
         'Isupipe::Entity::User',
         'SELECT * FROM users WHERE id = ?',
         $livecomment->user_id,
     );
     my $comment_owner = fill_user_response($app, $user);
 
-    my $livestream = $app->dbh->select_row_as(
+    my $livestream = $app->dbh_r->select_row_as(
         'Isupipe::Entity::Livestream',
         'SELECT * FROM livestreams WHERE id = ?',
         $livecomment->livestream_id,
@@ -114,14 +114,14 @@ sub fill_livecomment_response($app, $livecomment) {
 }
 
 sub fill_livecomment_report_response($app, $livecomment_report) {
-    my $reporter = $app->dbh->select_row_as(
+    my $reporter = $app->dbh_r->select_row_as(
         'Isupipe::Entity::User',
         'SELECT * FROM users WHERE id = ?',
         $livecomment_report->user_id,
     );
     $reporter = fill_user_response($app, $reporter);
 
-    my $livecomment = $app->dbh->select_row_as(
+    my $livecomment = $app->dbh_r->select_row_as(
         'Isupipe::Entity::Livecomment',
         'SELECT * FROM livecomments WHERE id = ?',
         $livecomment_report->livecomment_id,
@@ -137,14 +137,14 @@ sub fill_livecomment_report_response($app, $livecomment_report) {
 }
 
 sub fill_reaction_response($app, $reaction) {
-    my $user = $app->dbh->select_row_as(
+    my $user = $app->dbh_r->select_row_as(
         'Isupipe::Entity::User',
         'SELECT * FROM users WHERE id = ?',
         $reaction->user_id,
     );
     $user = fill_user_response($app, $user);
 
-    my $livestream = $app->dbh->select_row_as(
+    my $livestream = $app->dbh_r->select_row_as(
         'Isupipe::Entity::Livestream',
         'SELECT * FROM livestreams WHERE id = ?',
         $reaction->livestream_id,

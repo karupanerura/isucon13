@@ -36,8 +36,6 @@ sub get_livecomments_handler($app, $c) {
 
     my $livestream_id = $c->args->{livestream_id};
 
-    my $txn = $app->dbh->txn_scope;
-
     my $query = "SELECT * FROM livecomments WHERE livestream_id = ? ORDER BY created_at DESC";
     if (my $limit = $c->req->query_parameters->{limit}) {
         unless ($limit =~ /^\d+$/) {
@@ -46,7 +44,7 @@ sub get_livecomments_handler($app, $c) {
         $query .= sprintf(" LIMIT %d", $limit);
     }
 
-    my $livecomments = $app->dbh->select_all_as(
+    my $livecomments = $app->dbh_r->select_all_as(
         'Isupipe::Entity::Livecomment',
         $query,
         $livestream_id,
@@ -59,8 +57,6 @@ sub get_livecomments_handler($app, $c) {
     $livecomments = [
         map { fill_livecomment_response($app, $_) } $livecomments->@*
     ];
-
-    $txn->commit;
 
     return $c->render_json($livecomments);
 }
@@ -172,7 +168,7 @@ sub get_ngwords_handler($app, $c) {
 
     my $livestream_id = $c->args->{livestream_id};
 
-    my $ng_words = $app->dbh->select_all_as(
+    my $ng_words = $app->dbh_r->select_all_as(
         'Isupipe::Entity::NGWord',
         'SELECT * FROM ng_words WHERE user_id = ? AND livestream_id = ? ORDER BY created_at DESC',
         $user_id,

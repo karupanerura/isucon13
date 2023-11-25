@@ -4,7 +4,7 @@ use utf8;
 
 sub get_payment_result($app, $c) {
 
-    my $total_tip = $app->dbh->select_one(
+    my $total_tip = $app->dbh_r->select_one(
         'SELECT IFNULL(SUM(tip), 0) FROM livecomments'
     );
 

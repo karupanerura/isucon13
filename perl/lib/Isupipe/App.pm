@@ -34,6 +34,22 @@ sub connect_db() {
     return $dbh;
 }
 
+sub connect_r_db() {
+    #my $host     = $ENV{ISUCON13_MYSQL_R_DIALCONFIG_ADDRESS}  || '127.0.0.1';
+    my $host     = $ENV{ISUCON13_MYSQL_R_DIALCONFIG_ADDRESS}  || '192.168.0.13'; # 3番
+    my $port     = $ENV{ISUCON13_MYSQL_DIALCONFIG_PORT}       || '3306';
+    my $user     = $ENV{ISUCON13_MYSQL_DIALCONFIG_USER}       || 'isucon';
+    my $password = $ENV{ISUCON13_MYSQL_DIALCONFIG_PASSWORD}   || 'isucon';
+    my $dbname   = $ENV{ISUCON13_MYSQL_DIALCONFIG_DATABASE}   || 'isupipe';
+
+    my $dsn = "dbi:mysql:database=$dbname;host=$host;port=$port";
+    my $dbh = DBIx::Sunny->connect($dsn, $user, $password, {
+        mysql_enable_utf8mb4 => 1,
+        mysql_auto_reconnect => 1,
+    });
+    return $dbh;
+}
+
 sub dbh($self) {
     $self->{_dbh} //= connect_db();
 }

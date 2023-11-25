@@ -181,9 +181,7 @@ sub get_user_handler($app, $c) {
 
     my $username = $c->args->{username};
 
-    my $txn = $app->dbh->txn_scope;
-
-    my $user = $app->dbh->select_row_as(
+    my $user = $app->dbh_r->select_row_as(
         'Isupipe::Entity::User',
         'SELECT * FROM users WHERE name = ?',
         $username,
@@ -233,7 +231,7 @@ sub post_icon_handler($app, $c) {
         $c->halt(HTTP_BAD_REQUEST, 'failed to decode the quest body as json');
     }
 
-    my $user = $app->dbh->select_row(
+    my $user = $app->dbh_r->select_row(
         'SELECT name FROM users WHERE id = ?',
         $user_id,
     );
