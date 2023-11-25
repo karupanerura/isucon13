@@ -8,10 +8,10 @@ use File::Spec;
 use JSON::PP qw/encode_json/;
 
 my $LOCAL_BASE_DIR = File::Spec->catdir($FindBin::Bin, File::Spec->updir);
-my $REMOTE_BASE_DIR = '/home/isucon';
+my $REMOTE_BASE_DIR = '/home/isucon/webapp';
 
-my @TARGET_DIRS = qw(perl);
-my @TARGET_HOSTS = qw(isu13q-1 isu13q-2 isu13q-3);
+my @TARGET_DIRS = qw(perl img pdns sql);
+my @TARGET_HOSTS = qw(isucon13-final-1 isucon13-final-2 isucon13-final-3);
 
 # check dir
 for my $dir (@TARGET_DIRS) {
@@ -45,7 +45,10 @@ for my $host (@TARGET_HOSTS) {
     for my $dir (@TARGET_DIRS) {
         my $local_dir = File::Spec->catdir($LOCAL_BASE_DIR, $dir);
         my $remote_dir = File::Spec->catdir($REMOTE_BASE_DIR, $dir);
-        system 'rsync', '-avucz', '-e', 'ssh', "$local_dir/", "$host:$remote_dir";
+        my @additional_rsync_opts;
+        push @additional_rsync_opts => "--exclude", "local" if $dir eq 'perl';
+        system 'rsync', '-avucz', '-e', 'ssh', @additional_rsync_opts, "$local_dir/", "$host:$remote_dir";
+        system 'ssh', '-n', $host, File::Spec->catfile($REMOTE_BASE_DIR, $dir, 'post_deploy.sh') if $dir eq 'perl';
         system 'curl', '-X', 'POST',
             '-H', 'Content-type: application/json',
             '-d', encode_json({ text => "[DEPLOY] $dir -> $host by $ENV{USER}" }),
