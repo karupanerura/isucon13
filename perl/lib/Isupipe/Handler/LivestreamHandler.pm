@@ -99,8 +99,10 @@ sub reserve_livestream_handler($app, $c) {
         'INSERT INTO livestreams (user_id, title, description, playlist_url, thumbnail_url, start_at, end_at) VALUES(:user_id, :title, :description, :playlist_url, :thumbnail_url, :start_at, :end_at)',
         $livestream->as_hashref,
     );
-
     my $livestream_id = $app->dbh->last_insert_id;
+
+    $app->dbh->query('INSERT INTO livestream_scores (livestream_id, score) VALUES (?, 0)', $livestream_id);
+
     $livestream->id($livestream_id);
 
     # タグ追加

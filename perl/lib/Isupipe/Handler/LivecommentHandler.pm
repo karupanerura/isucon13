@@ -4,6 +4,8 @@ use utf8;
 
 use HTTP::Status qw(:constants);
 use Types::Standard -types;
+use Regexp::Assemble;
+use List::Util qw/sum0/;
 
 use Isupipe::Log;
 use Isupipe::Entity::Livecomment;
@@ -76,6 +78,11 @@ sub post_livecomment_handler($app, $c) {
         $c->halt(HTTP_BAD_REQUEST, "failed to decode the request body as json");
     }
 
+    my $livestream_owner_user_id = $params->{tip} ? $app->dbh->select_one(
+        'SELECT u.id FROM livestreams l INNER JOIN users u ON u.id = l.user_id WHERE l.id = ?',
+        $livestream_id,
+    ) : undef;
+
     my $txn = $app->dbh->txn_scope;
 
     my $livestream = $app->dbh->select_row_as(
@@ -88,6 +95,7 @@ sub post_livecomment_handler($app, $c) {
     }
 
     # スパム判定
+    # NOTE(karupa): 各件の数は大したことない
     my $ng_words = $app->dbh->select_all_as(
         'Isupipe::Entity::NGWord',
         'SELECT id, user_id, livestream_id, word FROM ng_words WHERE user_id = ? AND livestream_id = ?',
@@ -127,9 +135,25 @@ sub post_livecomment_handler($app, $c) {
         'INSERT INTO livecomments (user_id, livestream_id, comment, tip, created_at) VALUES (:user_id, :livestream_id, :comment, :tip, :created_at)',
         $livecomment->as_hashref,
     );
-
     my $livecomment_id = $app->dbh->last_insert_id;
     $livecomment->id($livecomment_id);
+
+    if ($params->{tip}) {
+        $app->dbh->query(
+            'UPDATE livestream_scores SET score = score + :tip WHERE livestream_id = :livestream_id',
+            {
+                livestream_id => $livestream_id,
+                tip => $params->{tip},
+            },
+        );
+        $app->dbh->query(
+            'UPDATE user_scores SET score = score + :tip WHERE user_id = :user_id',
+            {
+                user_id => $livestream_owner_user_id,
+                tip => $params->{tip},
+            },
+        );
+    }
 
     $livecomment = fill_livecomment_response($app, $livecomment);
 
@@ -246,35 +270,40 @@ sub moderate_handler($app, $c) {
 
     my $word_id = $app->dbh->last_insert_id;
 
-    my $ng_words = $app->dbh->select_all_as(
-        'Isupipe::Entity::NGWord',
-        'SELECT * FROM ng_words WHERE livestream_id = ?',
+    my $ng_words_regex = do {
+        my $ng_words = $app->dbh->selectcol_arrayref('SELECT word FROM ng_words WHERE livestream_id = ?', undef, $livestream_id);
+        my $ra = Regexp::Assemble->new;
+        $ra->add(quotemeta $_) for @$ng_words;
+        my $re = $ra->re;
+        qr/$re/m;
+    };
+
+    # NGワードにヒットする過去の投稿も全削除する
+    my $livecomments = $app->dbh->select_all_as(
+        'Isupipe::Entity::Livecomment',
+        'SELECT * FROM livecomments WHERE livestream_id = ?',
         $livestream_id,
     );
 
-    # NGワードにヒットする過去の投稿も全削除する
-    for my $ng_word ($ng_words->@*) {
-        # ライブコメント一覧取得
-        my $livecomments = $app->dbh->select_all_as(
-            'Isupipe::Entity::Livecomment',
-            'SELECT * FROM livecomments',
+    my @targets = grep $_->comment =~ $ng_words_regex, $livecomments->@*;
+    
+    my @ids;
+    if (@targets) {
+        $app->dbh->query(
+            'DELETE FROM livecomments WHERE id IN (?)',
+            [map { $_->id } @targets],
         );
 
-        for my $livecomment ($livecomments->@*) {
-            my $query = <<~ 'SQL';
-                DELETE FROM livecomments
-                WHERE
-                id = ? AND
-                livestream_id = ? AND
-                (SELECT COUNT(*)
-                FROM
-                (SELECT ? AS text) AS texts
-                INNER JOIN
-                (SELECT CONCAT('%', ?, '%')	AS pattern) AS patterns
-                ON texts.text LIKE patterns.pattern) >= 1;
-            SQL
-
-            $app->dbh->query($query, $livecomment->id, $livestream_id, $livecomment->comment, $ng_word->word);
+        my $tips = sum0 map { $_->tip } @targets;
+        if ($tips) {
+            $app->dbh->query(
+                'UPDATE user_scores SET score = score - ? WHERE user_id = ?',
+                $tips, $user_id,
+            );
+            $app->dbh->query(
+                'UPDATE user_scores SET score = score - ? WHERE livestream_id = ?',
+                $tips, $livestream_id,
+            );
         }
     }
 
