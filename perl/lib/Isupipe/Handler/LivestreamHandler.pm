@@ -4,6 +4,7 @@ use utf8;
 
 use HTTP::Status qw(:constants);
 use Types::Standard -types;
+use List::Util qw/any/;
 
 use Isupipe::Log;
 use Isupipe::Entity::LivestreamViewer;
@@ -48,8 +49,6 @@ sub reserve_livestream_handler($app, $c) {
         $c->halt(HTTP_BAD_REQUEST, "failed to decode the request body as jso");
     }
 
-    my $txn = $app->dbh->txn_scope;
-
     # 2023/11/25 10:00からの１年間の期間内であるかチェック
     if (
         ($params->{start_at} == TERM_END_AT || $params->{start_at} > TERM_END_AT) ||
@@ -59,24 +58,22 @@ sub reserve_livestream_handler($app, $c) {
     }
 
     # 予約枠をみて、予約が可能か調べる
-    # NOTE: 並列な予約のoverbooking防止にFOR UPDATEが必要
-    my $slots = $app->dbh->select_all_as(
-        'Isupipe::Entity::ReservationSlot',
-        'SELECT * FROM reservation_slots WHERE start_at >= ? AND end_at <= ? FOR UPDATE',
-        $params->{start_at},
-        $params->{end_at},
-    );
+    my %slots = @{
+        $app->dbh->selectcol_arrayref(
+            'SELECT id, slot FROM reservation_slots WHERE start_at >= ? AND end_at <= ?',
+            { Columns => [ 1, 2 ] }, $params->{start_at}, $params->{end_at},
+        )
+    };
+    if (any { $_ == 0 } values %slots) {
+        $c->halt(HTTP_BAD_REQUEST, sprintf("予約期間 %d ~ %dに対して、予約区間 %d ~ %dが予約できません", TERM_START_AT, TERM_END_AT, $params->{start_at}, $params->{end_at}));
+    }
 
-    for my $slot ($slots->@*) {
-        my $count = $app->dbh->select_one(
-            'SELECT slot FROM reservation_slots WHERE start_at = ? AND end_at = ?',
-            $slot->start_at,
-            $slot->end_at,
-        );
-        infof('%d ~ %d予約枠の残数 = %d', $slot->start_at, $slot->end_at, $slot->slot);
-        if ($count < 1) {
-            $c->halt(HTTP_BAD_REQUEST, sprintf("予約期間 %d ~ %dに対して、予約区間 %d ~ %dが予約できません", TERM_START_AT, TERM_END_AT, $params->{start_at}, $params->{end_at}));
-        }
+    my $txn = $app->dbh->txn_scope;
+
+    # NOTE: 並列な予約のoverbooking防止にFOR UPDATEが必要
+    my $overed_slots = $app->dbh->select_one('SELECT COUNT(*) FROM reservation_slots WHERE id IN (?) AND slot = 0 FOR UPDATE', [keys %slots]);
+    if ($overed_slots) {
+        $c->halt(HTTP_BAD_REQUEST, sprintf("予約期間 %d ~ %dに対して、予約区間 %d ~ %dが予約できません", TERM_START_AT, TERM_END_AT, $params->{start_at}, $params->{end_at}));
     }
 
     my $livestream = Isupipe::Entity::Livestream->new(
