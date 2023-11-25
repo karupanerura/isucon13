@@ -110,3 +110,17 @@ CREATE TABLE `reactions` (
   `created_at` BIGINT NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 CREATE INDEX reactions_livestream_id ON reactions(`livestream_id`);
+
+-- スコア
+CREATE TABLE `user_scores` (
+  `user_id` BIGINT NOT NULL PRIMARY KEY,
+  `score` BIGINT NOT NULL,
+  `user_name` VARCHAR(255) NOT NULL,
+  INDEX ranking_idx (`score` DESC, `user_name` DESC)
+) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+
+CREATE TABLE `livestream_scores` (
+  `livestream_id` BIGINT NOT NULL PRIMARY KEY,
+  `score` BIGINT NOT NULL,
+  INDEX ranking_idx (`score` DESC, `livestream_id` DESC)
+) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
