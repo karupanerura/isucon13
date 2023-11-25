@@ -6,6 +6,7 @@ use experimental qw(try);
 use Kossy;
 use HTTP::Status qw(:constants);
 use DBIx::Sunny;
+use File::Path qw(remove_tree);
 
 $Kossy::JSON_SERIALIZER = Cpanel::JSON::XS->new()->ascii(0)->utf8->convert_blessed;
 
@@ -43,6 +44,9 @@ sub initialize_handler($self, $c) {
         warnf("init.sh failed with err=%s", $e);
         $c->halt(HTTP_INTERNAL_SERVER_ERROR, "faild to initialize: $e");
     }
+
+    remove_tree("/home/isucon/icons");
+    mkdir "/home/isucon/icons";
 
     return $c->render_json({
         language        => 'perl',
