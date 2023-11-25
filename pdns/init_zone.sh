@@ -7,7 +7,7 @@ if test -f /home/isucon/env.sh; then
 	. /home/isucon/env.sh
 fi
 
-ISUCON_SUBDOMAIN_ADDRESS=${ISUCON13_POWERDNS_SUBDOMAIN_ADDRESS:-127.0.0.1}
+ISUCON_SUBDOMAIN_ADDRESS=`curl http://169.254.169.254/latest/meta-data/public-ipv4`
 
 temp_dir=$(mktemp -d)
 trap 'rm -rf $temp_dir' EXIT
