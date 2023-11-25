@@ -56,6 +56,8 @@ use constant PostIconRequest => Dict[
     image => Str, # 画像データをBase64した値
 ];
 
+my %icon_hash_cache;
+
 # ユーザ登録API
 # POST /api/register
 sub register_handler($app, $c) {
@@ -205,9 +207,7 @@ sub get_icon_handler($app, $c) {
 
     my $res = $c->response;
 
-    state %icon_hash_cache;
-
-    my $icon_hash = $icon_hash_cache{username} //= do {
+    my $icon_hash = $icon_hash_cache{$username} //= do {
         local $/;
         my $fh;
         open $fh, '<', "/home/isucon/icons/$username.sha256"
@@ -255,6 +255,7 @@ sub post_icon_handler($app, $c) {
     );
     my $username = $user->{name};
     my $image = decode_base64($params->{image});
+    my $icon_hash = $icon_hash_cache{$username} = sha256_hex($image);
 
     {
         my $dir = tempdir(CLEANUP => 1);
@@ -265,7 +266,7 @@ sub post_icon_handler($app, $c) {
         close $fh or die "Cannot close icon file: $!";
 
         open $fh, '>', "$dir/$username.sha256" or die "Cannot open icon hash file: $!";
-        print $fh sha256_hex($image);
+        print $fh $icon_hash;
         close $fh or die "Cannot close icon hash file: $!";
 
         rename "$dir/$username.jpeg", "/home/isucon/icons/$username.jpeg" or die "Cannot rename icon file: $!";
