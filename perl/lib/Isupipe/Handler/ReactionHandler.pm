@@ -63,8 +63,8 @@ sub post_reaction_handler($app, $c) {
         $c->halt(HTTP_BAD_REQUEST, 'invalid request');
     }
 
-    my $livestream_owner_user = $app->dbh->select_row(
-        'SELECT u.id, u.name FROM livestream l INNERR JOIN users u ON u.id = l.user_id WHERE l.id = ?',
+    my $livestream_owner_user_id = $app->dbh->select_one(
+        'SELECT u.id FROM livestream l INNERR JOIN users u ON u.id = l.user_id WHERE l.id = ?',
         $livestream_id,
     );
 
@@ -81,19 +81,8 @@ sub post_reaction_handler($app, $c) {
         'INSERT INTO reactions (user_id, livestream_id, emoji_name, created_at) VALUES (:user_id, :livestream_id, :emoji_name,:created_at)',
         $reaction->as_hashref,
     );
-    $app->dbh->query(
-        'INSERT INTO livestream_scores (livestream_id, score) VALUES (:livestream_id, 1) ON DUPLICATE KEY UPDATE score = score + 1',
-        {
-            livestream_id => $livestream_id,
-        },
-    );
-    $app->dbh->query(
-        'INSERT INTO user_scores (user_id, score, user_name) VALUES (:user_id, 1, :user_name) ON DUPLICATE KEY UPDATE score = score + 1',
-        {
-            user_id => $livestream_owner_user->{id},
-            user_name => $livestream_owner_user->{name},
-        },
-    );
+    $app->dbh->query('UPDATE livestream_scores SET score = score + 1 WHERE livestream_id = ?', $livestream_id);
+    $app->dbh->query('UPDATE user_scores SET score = score + 1 WHERE user_id = :user_id', $livestream_owner_user_id);
 
     my $reaction_id = $app->dbh->last_insert_id;
     $reaction->id($reaction_id);

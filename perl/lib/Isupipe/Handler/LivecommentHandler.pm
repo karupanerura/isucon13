@@ -78,8 +78,8 @@ sub post_livecomment_handler($app, $c) {
         $c->halt(HTTP_BAD_REQUEST, "failed to decode the request body as json");
     }
 
-    my $livestream_owner_user = $params->{tip} ? $app->dbh->select_row(
-        'SELECT u.id, u.name FROM livestream l INNERR JOIN users u ON u.id = l.user_id WHERE l.id = ?',
+    my $livestream_owner_user_id = $params->{tip} ? $app->dbh->select_one(
+        'SELECT u.id FROM livestream l INNERR JOIN users u ON u.id = l.user_id WHERE l.id = ?',
         $livestream_id,
     ) : undef;
 
@@ -137,17 +137,16 @@ sub post_livecomment_handler($app, $c) {
     );
     if ($params->{tip}) {
         $app->dbh->query(
-            'INSERT INTO livestream_scores (livestream_id, score) VALUES (:livestream_id, :tip) ON DUPLICATE KEY UPDATE score = score + :tip',
+            'UPDATE livestream_scores SET score = score + :tip WHERE livestream_id = :livestream_id',
             {
                 livestream_id => $livestream_id,
                 tip => $params->{tip},
             },
         );
         $app->dbh->query(
-            'INSERT INTO user_scores (user_id, score, user_name) VALUES (:user_id, :tip, :user_name) ON DUPLICATE KEY UPDATE score = score + :tip',
+            'UPDATE user_scores SET score = score + :tip WHERE user_id = :user_id',
             {
-                user_id => $livestream_owner_user->{id},
-                user_name => $livestream_owner_user->{name},
+                user_id => $livestream_owner_user_id,
                 tip => $params->{tip},
             },
         );

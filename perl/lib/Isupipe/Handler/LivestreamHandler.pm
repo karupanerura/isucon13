@@ -48,6 +48,8 @@ sub reserve_livestream_handler($app, $c) {
         $c->halt(HTTP_BAD_REQUEST, "failed to decode the request body as jso");
     }
 
+    my $user_name = $app->dbh->select_one('SELECT name FROM users WHERE id = ?', $user_id);
+
     my $txn = $app->dbh->txn_scope;
 
     # 2023/11/25 10:00からの１年間の期間内であるかチェック
@@ -99,8 +101,11 @@ sub reserve_livestream_handler($app, $c) {
         'INSERT INTO livestreams (user_id, title, description, playlist_url, thumbnail_url, start_at, end_at) VALUES(:user_id, :title, :description, :playlist_url, :thumbnail_url, :start_at, :end_at)',
         $livestream->as_hashref,
     );
-
     my $livestream_id = $app->dbh->last_insert_id;
+
+    $app->dbh->query('INSERT IGNORE INTO livestream_scores (livestream_id, score) VALUES (?, 0)', $livestream_id);
+    $app->dbh->query('INSERT IGNORE INTO user_scores (user_id, score, user_name) VALUES (?, 0, ?)', $user_id, $user_name);
+
     $livestream->id($livestream_id);
 
     # タグ追加
