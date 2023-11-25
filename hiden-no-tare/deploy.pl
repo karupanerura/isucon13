@@ -14,6 +14,7 @@ my $WITH_ENV_SH = 1;
 my @TARGET_DIRS = qw(perl img pdns sql);
 my @TARGET_HOSTS = qw(isucon13-final-1 isucon13-final-2 isucon13-final-3);
 
+
 # check dir
 for my $dir (@TARGET_DIRS) {
     die "not found dir $dir" unless -d File::Spec->catdir($LOCAL_BASE_DIR, $dir);
@@ -53,6 +54,17 @@ for my $host (@TARGET_HOSTS) {
             '-d', encode_json({ text => "[DEPLOY] env.sh -> $host by $ENV{USER}" }),
             'https://hooks.slack.com/services/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';
     }
+    {
+        my $local_file = File::Spec->catfile($LOCAL_BASE_DIR, 'db_setup.sh');
+        my $remote_file = File::Spec->catfile($REMOTE_BASE_DIR, File::Spec->updir, 'db_setup.sh');
+        system 'scp', '-C', "$local_file", "$host:$remote_file";
+        system 'curl', '-X', 'POST',
+            '-H', 'Content-type: application/json',
+            '-d', encode_json({ text => "[DEPLOY] db_setup.sh -> $host by $ENV{USER}" }),
+            'https://hooks.slack.com/services/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';
+
+    }
+
     for my $dir (@TARGET_DIRS) {
         my $local_dir = File::Spec->catdir($LOCAL_BASE_DIR, $dir);
         my $remote_dir = File::Spec->catdir($REMOTE_BASE_DIR, $dir);
