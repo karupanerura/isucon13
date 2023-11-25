@@ -1,5 +1,7 @@
-INSERT INTO livestream_scores SELECT * FROM (SELECT l.id, IFNULL(SUM(lc.tip), 0) AS tips FROM livestreams l LEFT JOIN livecomments lc ON lc.livestream_id = l.id GROUP BY l.id) AS q ON DUPLICATE KEY UPDATE score = score + q.tips;
+INSERT INTO livestream_scores SELECT * FROM (SELECT l.id, IFNULL(SUM(lc.tip), 0) AS tips FROM livecomments lc INNER JOIN livestreams l ON l.id = lc.livestream_id GROUP BY l.id) AS q ON DUPLICATE KEY UPDATE score = score + q.tips;
 INSERT INTO livestream_scores SELECT * FROM (SELECT livestream_id, COUNT(*) AS reactions FROM reactions GROUP BY livestream_id) AS q ON DUPLICATE KEY UPDATE score = score + q.reactions;
+INSERT INTO livestream_scores SELECT id, 0 FROM livestreams l WHERE NOT EXISTS (SELECT 1 FROM livestream_scores WHERE livestream_id = l.id);
 
-INSERT INTO user_scores SELECT * FROM (SELECT u.id, COUNT(*) AS reactions, u.name FROM users u LEFT JOIN livestreams l ON l.user_id = u.id LEFT JOIN reactions r ON r.livestream_id = l.id GROUP BY u.id) AS q ON DUPLICATE KEY UPDATE score = score + q.reactions;
-INSERT INTO user_scores SELECT * FROM (SELECT u.id, IFNULL(SUM(lc.tip), 0) AS tips, u.name FROM users u LEFT JOIN livestreams l ON l.user_id = u.id LEFT JOIN livecomments lc ON lc.livestream_id = l.id GROUP BY u.id) AS q ON DUPLICATE KEY UPDATE score = score + q.tips;
+INSERT INTO user_scores SELECT * FROM (SELECT u.id, IFNULL(SUM(lc.tip), 0) AS tips, u.name FROM livecomments lc INNER JOIN livestreams l ON l.id = lc.livestream_id INNER JOIN users u ON u.id = l.user_id GROUP BY u.id) AS q ON DUPLICATE KEY UPDATE score = score + q.tips;
+INSERT INTO user_scores SELECT * FROM (SELECT u.id, COUNT(*) AS reactions, u.name FROM reactions r INNER JOIN livestreams l ON l.id = r.livestream_id INNER JOIN users u ON u.id = l.user_id GROUP BY u.id) AS q ON DUPLICATE KEY UPDATE score = score + q.reactions;
+INSERT INTO user_scores SELECT id, 0, name FROM users u WHERE NOT EXISTS (SELECT 1 FROM user_scores WHERE user_id = u.id);
