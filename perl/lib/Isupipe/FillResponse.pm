@@ -22,7 +22,7 @@ use Isupipe::Entity::Livecomment;
 use Isupipe::Entity::Reaction;
 
 use Isupipe::Icon qw(
-    generate_icon_hash
+    FALLBACK_IMAGE_HASH_PATH
 );
 
 sub fill_user_response($app, $user) {
@@ -35,7 +35,16 @@ sub fill_user_response($app, $user) {
         croak 'Theme not found:', $user->id;
     }
 
-    my $icon_hash = generate_icon_hash($user->name);
+    my $username = $user->name;
+    my $icon_hash = do {
+        local $/;
+        my $fh;
+        open $fh, '<', "/home/isucon/icons/$username.sha256"
+            or open $fh, '<', FALLBACK_IMAGE_HASH_PATH
+            or die "Cannot open icon hash file: $!";
+        <$fh>;
+    };
+
     return Isupipe::Entity::User->new(
         id           => $user->id,
         name         => $user->name,
