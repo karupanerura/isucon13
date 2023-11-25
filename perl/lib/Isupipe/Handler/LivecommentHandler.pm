@@ -79,7 +79,7 @@ sub post_livecomment_handler($app, $c) {
     }
 
     my $livestream_owner_user_id = $params->{tip} ? $app->dbh->select_one(
-        'SELECT u.id FROM livestream l INNERR JOIN users u ON u.id = l.user_id WHERE l.id = ?',
+        'SELECT u.id FROM livestream l INNER JOIN users u ON u.id = l.user_id WHERE l.id = ?',
         $livestream_id,
     ) : undef;
 
