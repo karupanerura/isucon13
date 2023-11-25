@@ -25,12 +25,20 @@ use Isupipe::Icon qw(
     FALLBACK_IMAGE_HASH_PATH
 );
 
+use Cache::Memory::Simple;
+
+use constant EXPIRATION => 15;
+my $THEMES_CACHE = Cache::Memory::Simple->new();
+my $USERS_CACHE = Cache::Memory::Simple->new();
+
 sub fill_user_response($app, $user) {
-    my $theme = $app->dbh->select_row_as(
-        'Isupipe::Entity::Theme',
-        'SELECT * FROM themes WHERE user_id = ?',
-        $user->id,
-    );
+    my $theme = $THEMES_CACHE->get_or_set($user->id, sub {
+        $app->dbh->select_row_as(
+            'Isupipe::Entity::Theme',
+            'SELECT * FROM themes WHERE user_id = ?',
+            $user->id,
+        );
+    }, EXPIRATION);
     unless ($theme) {
         croak 'Theme not found:', $user->id;
     }
@@ -56,33 +64,23 @@ sub fill_user_response($app, $user) {
 }
 
 sub fill_livestream_response($app, $livestream) {
-    my $owner = $app->dbh->select_row_as(
-        'Isupipe::Entity::User',
-        'SELECT * FROM users WHERE id = ?',
-        $livestream->user_id,
-    );
+    my $owner = $USERS_CACHE->get_or_set($livestream->user_id, sub {
+        $app->dbh->select_row_as(
+            'Isupipe::Entity::User',
+            'SELECT * FROM users WHERE id = ?',
+            $livestream->user_id,
+        );
+    }, EXPIRATION);
     unless ($owner) {
         croak 'Owner not found:', $livestream->user_id;
     }
     $owner = fill_user_response($app, $owner);
 
-    my $livestream_tags = $app->dbh->select_all(
-        'SELECT tag_id FROM livestream_tags WHERE livestream_id = ?',
+    my $tags = $app->dbh->select_all_as(
+        'Isupipe::Entity::Tag',
+        'SELECT tags.* FROM livestream_tags INNER JOIN tags ON tags.id = livestream_tags.tag_id WHERE livestream_tags.livestream_id = ?',
         $livestream->id,
     ) || [];
-
-    my $tags = [];
-    if (scalar @$livestream_tags) {
-        my @tag_ids = map { $_->{tag_id} } @$livestream_tags;
-        $tags = $app->dbh->select_all_as(
-            'Isupipe::Entity::Tag',
-            'SELECT * FROM tags WHERE id IN (?)',
-            \@tag_ids,
-        );
-    }
-    if (scalar @$tags != scalar @$livestream_tags) {
-        croak 'Tag not found';
-    }
 
     return Isupipe::Entity::Livestream->new(
         id            => $livestream->id,
@@ -98,11 +96,13 @@ sub fill_livestream_response($app, $livestream) {
 }
 
 sub fill_livecomment_response($app, $livecomment) {
-    my $user = $app->dbh->select_row_as(
-        'Isupipe::Entity::User',
-        'SELECT * FROM users WHERE id = ?',
-        $livecomment->user_id,
-    );
+    my $user = $USERS_CACHE->get_or_set($livecomment->user_id, sub {
+        $app->dbh->select_row_as(
+            'Isupipe::Entity::User',
+            'SELECT * FROM users WHERE id = ?',
+            $livecomment->user_id,
+        );
+    }, EXPIRATION);
     my $comment_owner = fill_user_response($app, $user);
 
     my $livestream = $app->dbh->select_row_as(
@@ -123,11 +123,13 @@ sub fill_livecomment_response($app, $livecomment) {
 }
 
 sub fill_livecomment_report_response($app, $livecomment_report) {
-    my $reporter = $app->dbh->select_row_as(
-        'Isupipe::Entity::User',
-        'SELECT * FROM users WHERE id = ?',
-        $livecomment_report->user_id,
-    );
+    my $reporter = $USERS_CACHE->get_or_set($livecomment_report->user_id, sub {
+        $app->dbh->select_row_as(
+            'Isupipe::Entity::User',
+            'SELECT * FROM users WHERE id = ?',
+            $livecomment_report->user_id,
+        );
+    }, EXPIRATION);
     $reporter = fill_user_response($app, $reporter);
 
     my $livecomment = $app->dbh->select_row_as(
@@ -146,11 +148,13 @@ sub fill_livecomment_report_response($app, $livecomment_report) {
 }
 
 sub fill_reaction_response($app, $reaction) {
-    my $user = $app->dbh->select_row_as(
-        'Isupipe::Entity::User',
-        'SELECT * FROM users WHERE id = ?',
-        $reaction->user_id,
-    );
+    my $user = $USERS_CACHE->get_or_set($reaction->user_id, sub {
+        $app->dbh->select_row_as(
+            'Isupipe::Entity::User',
+            'SELECT * FROM users WHERE id = ?',
+            $reaction->user_id,
+        );
+    }, EXPIRATION);
     $user = fill_user_response($app, $user);
 
     my $livestream = $app->dbh->select_row_as(
