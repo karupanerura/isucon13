@@ -6,6 +6,8 @@ use HTTP::Status qw(:constants);
 use Types::Standard -types;
 use Plack::Session;;
 use MIME::Base64 qw(decode_base64);
+use File::Temp qw(tempdir);
+use Digest::SHA qw(sha256_hex);
 
 use Isupipe::Log;
 use Isupipe::Entity::User;
@@ -24,7 +26,8 @@ use Isupipe::FillResponse qw(
 );
 
 use Isupipe::Icon qw(
-    read_fallback_user_icon_image
+    generate_icon_hash
+    FALLBACK_IMAGE_PATH
 );
 
 use constant POWER_DNS_SUBDMAIN_ADDRESS => `curl http://169.254.169.254/latest/meta-data/public-ipv4`;
@@ -199,30 +202,21 @@ sub get_user_handler($app, $c) {
 sub get_icon_handler($app, $c) {
     my $username = $c->args->{username};
 
-    my $txn = $app->dbh->txn_scope;
-    my $user = $app->dbh->select_row_as(
-        'Isupipe::Entity::User',
-        'SELECT * FROM users WHERE name = ?',
-        $username,
-    );
-    unless ($user) {
-        $c->halt(HTTP_NOT_FOUND, 'not found user that has the given username');
-    }
+    my $image = do {
+        local $/;
+        my $fh;
+        open $fh, '<', "/home/isucon/icons/$username.jpeg"
+            or open $fh, '<', FALLBACK_IMAGE_PATH
+            or die "Cannot open icon file: $!";
+        <$fh>;
+    };
 
-    my $image = $app->dbh->select_one(
-        'SELECT image FROM icons WHERE user_id = ?',
-        $user->id,
-    );
-
-    if (!$image) {
-        $image = read_fallback_user_icon_image();
-    }
-
-    $txn->commit;
+    my $icon_hash = sha256_hex($image);
 
     my $res = $c->response;
     $res->status(HTTP_OK);
     $res->content_type('image/jpeg');
+    $res->header('ETag' => qq{"$icon_hash"});
     $res->body($image);
     return $res;
 }
@@ -238,22 +232,24 @@ sub post_icon_handler($app, $c) {
         $c->halt(HTTP_BAD_REQUEST, 'failed to decode the quest body as json');
     }
 
-    my $txn = $app->dbh->txn_scope;
-    $app->dbh->query(
-        'DELETE FROM icons WHERE user_id = ?', $user_id
-    );
-
-    $app->dbh->query(
-        'INSERT INTO icons (user_id, image) VALUES(?, ?)',
+    my $user = $app->dbh->select_row(
+        'SELECT name FROM users WHERE id = ?',
         $user_id,
-        decode_base64($params->{image}),
     );
+    my $username = $user->{name};
 
-    my $icon_id = $app->dbh->last_insert_id;
+    {
+        my $dir = tempdir(CLEANUP => 1);
 
-    $txn->commit;
+        open my $fh, '>', "$dir/$username.jpeg" or die "Cannot open icon file: $!";
+        print $fh decode_base64($params->{image});
+        close $fh or die "Cannot close icon file: $!";
 
-    my $res = $c->render_json({ id => $icon_id });
+        rename "$dir/$username.jpeg", "/home/isucon/icons/$username.jpeg" or die "Cannot rename icon file: $!";
+    }
+
+    state $id = 0;
+    my $res = $c->render_json({ id => ++$id });
     $res->status(HTTP_CREATED);
     return $res;
 }
