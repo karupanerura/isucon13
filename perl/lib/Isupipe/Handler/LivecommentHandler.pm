@@ -95,30 +95,15 @@ sub post_livecomment_handler($app, $c) {
     }
 
     # スパム判定
-    # NOTE(karupa): 各件の数は大したことない
-    my $ng_words = $app->dbh->select_all_as(
-        'Isupipe::Entity::NGWord',
-        'SELECT id, user_id, livestream_id, word FROM ng_words WHERE user_id = ? AND livestream_id = ?',
-        $livestream->user_id,
-        $livestream->id,
-    );
-
-    my $hit_spam = 0;
-    for my $ng_word ($ng_words->@*) {
-        my $query =<<~ 'SQL';
-            SELECT COUNT(*)
-            FROM
-            (SELECT ? AS text) AS texts
-            INNER JOIN
-            (SELECT CONCAT('%', ?, '%') AS pattern) AS patterns
-            ON texts.text LIKE patterns.pattern
-        SQL
-
-        $hit_spam = $app->dbh->select_one($query, $params->{comment}, $ng_word->word);
-        infof("[hitSpam=%d] comment=%s", $hit_spam, $params->{comment});
-        if ($hit_spam >= 1) {
-            $c->halt(HTTP_BAD_REQUEST, "このコメントがスパム判定されました");
-        }
+    my $ng_words_regex = do {
+        my $ng_words = $app->dbh->selectcol_arrayref('SELECT word FROM ng_words WHERE livestream_id = ?', undef, $livestream_id);
+        my $ra = Regexp::Assemble->new;
+        $ra->add(quotemeta $_) for @$ng_words;
+        my $re = $ra->re;
+        qr/$re/m;
+    };
+    if ($params->{comment} =~ $ng_words_regex) {
+        $c->halt(HTTP_BAD_REQUEST, "このコメントがスパム判定されました");
     }
 
     my $now = time;
