@@ -63,20 +63,21 @@ sub fill_livestream_response($app, $livestream) {
     }
     $owner = fill_user_response($app, $owner);
 
-    my $livestream_tag_ids = $app->dbh->select_all(
-        'SELECT id FROM livestream_tags WHERE livestream_id = ?',
+    my $livestream_tags = $app->dbh->select_all(
+        'SELECT tag_id FROM livestream_tags WHERE livestream_id = ?',
         $livestream->id,
-    );
+    ) || [];
 
     my $tags = [];
-    if (scalar @$livestream_tag_ids) {
-        $tags = $app->dbh->select_row_as(
+    if (scalar @$livestream_tags) {
+        my @tag_ids = map { $_->{tag_id} } @$livestream_tags;
+        $tags = $app->dbh->select_all_as(
             'Isupipe::Entity::Tag',
             'SELECT * FROM tags WHERE id IN (?)',
-            $livestream_tag_ids,
+            \@tag_ids,
         );
     }
-    if (scalar @$tags != scalar @$livestream_tag_ids) {
+    if (scalar @$tags != scalar @$livestream_tags) {
         croak 'Tag not found';
     }
 
