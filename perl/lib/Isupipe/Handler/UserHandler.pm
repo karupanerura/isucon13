@@ -6,6 +6,7 @@ use HTTP::Status qw(:constants);
 use Types::Standard -types;
 use Plack::Session;;
 use MIME::Base64 qw(decode_base64);
+use Digest::SHA qw(sha256_hex);
 
 use Isupipe::Log;
 use Isupipe::Entity::User;
@@ -196,33 +197,33 @@ sub get_user_handler($app, $c) {
 }
 
 
+# GET /api/user/:username/icon
 sub get_icon_handler($app, $c) {
     my $username = $c->args->{username};
 
-    my $txn = $app->dbh->txn_scope;
-    my $user = $app->dbh->select_row_as(
-        'Isupipe::Entity::User',
-        'SELECT * FROM users WHERE name = ?',
+    my $user = $app->dbh->select_one(
+        <<'SQL',
+SELECT u.id as user_id, i.image as image
+FROM users
+LEFT JOIN icons ON users.id = icons.user_id
+WHERE name = ?
+SQL
         $username,
     );
     unless ($user) {
         $c->halt(HTTP_NOT_FOUND, 'not found user that has the given username');
     }
 
-    my $image = $app->dbh->select_one(
-        'SELECT image FROM icons WHERE user_id = ?',
-        $user->id,
-    );
-
+    my $image = $user->{image}
     if (!$image) {
         $image = read_fallback_user_icon_image();
     }
-
-    $txn->commit;
+    my $etag = sha256_hex($image); # FIXME: あらかじめ計算しておく
 
     my $res = $c->response;
     $res->status(HTTP_OK);
     $res->content_type('image/jpeg');
+    $res->set_header('ETag' => $etag);
     $res->body($image);
     return $res;
 }

@@ -10,6 +10,7 @@ my $app = Isupipe::App->psgi($root_dir);
 
 builder {
     enable 'ReverseProxy';
+    enable 'Plack::Middleware::ConditionalGET';
     enable 'Session::Cookie',
         session_key => 'isupipe_perl',
         domain      => 'u.isucon.dev',
