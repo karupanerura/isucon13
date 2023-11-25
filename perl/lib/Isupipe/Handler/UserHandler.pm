@@ -207,7 +207,7 @@ sub get_icon_handler($app, $c) {
 
     my $res = $c->response;
 
-    my $icon_hash = $icon_hash_cache{username} //= do {
+    my $icon_hash = $icon_hash_cache{$username} //= do {
         local $/;
         my $fh;
         open $fh, '<', "/home/isucon/icons/$username.sha256"
